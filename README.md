@@ -4,7 +4,7 @@ A QA workflow app for small development teams that ship across web, desktop, mob
 
 I built it for a small team that was shipping client software with no consistent testing process. Releases went out on "looks fine to me", and bugs reached the client. This tool makes "ready to ship" a measurable decision instead of a judgement call.
 
-> **Source code is private.** It runs on our team's private server. This repo shows how it works. The screenshots use made-up demo data. Happy to walk through the code on request.
+> **Source code is private.** It runs on our team's private server. This repo shows how it works, plus the [analytics SQL](sql/analytics-views.sql). The screenshots use made-up demo data. Happy to walk through the code on request.
 
 ---
 
@@ -68,6 +68,25 @@ flowchart LR
 ![Bug list](screenshots/bugs.png)
 
 **Roles.** Owner, Tester and Developer. Only the Owner can approve a release or manage users.
+
+## Quality analytics
+
+The release gate answers "can this ship?". The analytics page answers "is our QA process actually working?". Six PostgreSQL views turn raw test runs, results and bugs into quality KPIs. The SQL is published in [`sql/analytics-views.sql`](sql/analytics-views.sql).
+
+![Quality analytics dashboard](screenshots/analytics.png)
+
+| KPI | Business question | SQL behind it |
+|---|---|---|
+| Defects per 100 checks, by platform | Where should testing effort go? | CTEs, `FILTER`, `FULL OUTER JOIN` |
+| Median / P90 time-to-fix vs SLA | Are bugs fixed fast enough for their severity? | `PERCENTILE_CONT`, inline SLA table |
+| Health score trend | Is quality improving run over run? | `LAG`, `ROW_NUMBER`, 3-run rolling average |
+| Most failed checks | Which checks fail repeatedly and need root-cause review? | `DENSE_RANK` per platform |
+| Weekly bug flow | Is the open backlog growing or shrinking? | `GENERATE_SERIES` week spine, running `SUM() OVER` |
+| Cycles to release | How many QA cycles does a release need to pass the gate? | `LAG` over releases, correlated subquery |
+
+SLA targets: Critical 24h · High 72h · Medium 7d · Low 14d.
+
+In the demo data above, iOS has about 10× the defect density of the AI/OCR platform, and only 70% of medium and low bugs are fixed within SLA. Those are the two places a team lead would act first: more iOS device coverage, and a triage rule for lower-severity bugs.
 
 ## Stack
 
